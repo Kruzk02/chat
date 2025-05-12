@@ -21,11 +21,13 @@ class ClientTest {
 
     @Test
     public void testHello_whenServerResponseWhenStarted() throws IOException {
-        String response = client.send("Hello World");
-        String exit = client.send("good bye");
+        String join = client.send("JOIN HELLO_WORLD");
+        String message = client.send("MESSAGE HELLO_WORLD");
+        String exit = client.send("exit");
 
-        assertEquals("Hello World", response);
-        assertEquals("good bye", exit);
+        assertEquals("Joined group: HELLO_WORLD", join);
+        assertEquals("[HELLO_WORLD]: HELLO_WORLD", message);
+        assertEquals("Good Bye", exit);
     }
 
     @AfterEach
