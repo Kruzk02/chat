@@ -15,11 +15,25 @@ public class Client {
         clientSocket = new Socket(ip, port);
         out = new PrintWriter(clientSocket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
+        receive();
     }
 
-    public String send(String message) throws IOException {
+    public void send(String message) {
         out.println(message);
-        return in.readLine();
+    }
+
+    private void receive() {
+        Thread.ofVirtual().start(() -> {
+            try {
+                String response;
+                while ((response = in.readLine()) != null) {
+                    System.out.println("Server: " + response);
+                }
+            } catch (IOException e) {
+                System.err.println("Connection closed or error reading: " + e.getMessage());
+            }
+        });
     }
 
     public void stop() throws IOException {

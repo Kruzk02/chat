@@ -13,13 +13,13 @@ public class Main {
         while (true) {
             String str = scanner.nextLine();
 
-            String response = client.send(str);
-            System.out.println(response);
+            client.send(str);
 
             if (str.equals("exit")) {
                 client.stop();
                 break;
             }
         }
+        client.stop();
     }
 }
