@@ -31,14 +31,22 @@ public class Client {
                     System.out.println("Server: " + response);
                 }
             } catch (IOException e) {
-                System.err.println("Connection closed or error reading: " + e.getMessage());
+                if ("Stream closed".equals(e.getMessage())) {
+                    System.out.println("Connection closed normally.");
+                } else {
+                    System.err.println("Connection closed or error reading: " + e.getMessage());
+                }
+            } finally {
+                try {
+                    stop();
+                } catch (IOException ignored) { }
             }
         });
     }
 
     public void stop() throws IOException {
-        clientSocket.close();
-        out.close();
-        in.close();
+        if (clientSocket != null) clientSocket.close();
+        if (out != null) out.close();
+        if (in != null) in.close();
     }
 }
