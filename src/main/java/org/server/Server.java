@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,9 +41,10 @@ public class Server {
             try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
                  BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
-                String currentGroup = null;
                 String username = null;
                 String input;
+
+                Set<String> joinedGroup = ConcurrentHashMap.newKeySet();
 
                 while ((input = in.readLine()) != null) {
                     if (input.startsWith("USERNAME ")) {
@@ -54,44 +56,58 @@ public class Server {
                             continue;
                         }
 
-                        currentGroup = input.substring(5);
+                        String groupName = input.substring(5);
 
-                        groups.putIfAbsent(currentGroup, new ConcurrentHashMap<>());
-                        groups.get(currentGroup).put(username, out);
+                        groups.putIfAbsent(groupName, new ConcurrentHashMap<>());
+                        groups.get(groupName).put(username, out);
 
-                        out.println("Joined group: " + currentGroup);
-                    } else if (input.startsWith("MESSAGE ") && currentGroup != null) {
-                        String message = input.substring(8);
-                        for (var writer : groups.get(currentGroup).values()) {
-                            if (!writer.equals(out)) {
-                                writer.println(username + " has left the group.");
-                            }
+                        joinedGroup.add(groupName);
+                        out.println("Joined group: " + groupName);
 
-                            for (var entry : groups.get(currentGroup).entrySet()) {
+                    } else if (input.startsWith("MESSAGE ") && !joinedGroup.isEmpty()) {
+                        String[] parts = input.substring(8).split(" ", 2);
+                        if (parts.length < 2) {
+                            out.println("Invalid message format.");
+                            continue;
+                        }
+
+                        String targetGroup = parts[0];
+                        String message = parts[1];
+
+                        if (!joinedGroup.contains(targetGroup)) {
+                            out.println("You are not part of group: " + targetGroup);
+                            continue;
+                        }
+
+                        Map<String, PrintWriter> groupMembers = groups.get(targetGroup);
+                        if (groupMembers != null) {
+                            for (var entry : groupMembers.entrySet()) {
                                 if (!entry.getKey().equals(username)) {
-                                    writer.println("[" + currentGroup + "] " + username + ": " + message);
+                                    entry.getValue().println("[" + targetGroup + "] " + username + ": " + message);
                                 }
                             }
                         }
                     } else if (input.equals("exit")){
                         out.println("Good Bye");
+
+                        if (username != null) {
+                            for (var group : joinedGroup) {
+                                var groupMap = groups.get(group);
+
+                                if (groupMap != null) {
+                                    var writer = groupMap.remove(username);
+                                    if (writer != null) {
+                                        writer.close();
+                                    }
+                                    if (groupMap.isEmpty()) {
+                                        groups.remove(group);
+                                    }
+                                }
+                            }
+                        }
                         break;
                     } else {
                         out.println("Unknown command or not in a group.");
-                    }
-                }
-
-
-                if (username != null && currentGroup != null) {
-                    var group = groups.get(currentGroup);
-
-                    var writer = group.remove(username);
-                    if (writer != null) {
-                        writer.close();
-                    }
-
-                    if (group.isEmpty()) {
-                        groups.remove(currentGroup);
                     }
                 }
             } catch (IOException e) {
