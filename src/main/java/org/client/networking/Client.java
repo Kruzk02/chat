@@ -1,34 +1,46 @@
 package org.client.networking;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class Client {
     private Socket clientSocket;
-    private PrintWriter out;
-    private BufferedReader in;
+    private DataOutputStream out;
+    private DataInputStream in;
 
     public void start(String ip, int port) throws IOException {
         clientSocket = new Socket(ip, port);
-        out = new PrintWriter(clientSocket.getOutputStream(), true);
-        in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+        out = new DataOutputStream(clientSocket.getOutputStream());
+        in = new DataInputStream(clientSocket.getInputStream());
 
         receive();
     }
 
-    public void send(String message) {
-        out.println(message);
+    public void send(String message) throws IOException {
+        if (message == null || message.isEmpty()) {
+            throw new IllegalArgumentException("Message must not be null or empty");
+        }
+
+        byte header = (byte) message.charAt(0);
+        byte[] payload = message.substring(1).getBytes(StandardCharsets.UTF_8);
+
+        out.writeInt(payload.length);
+        out.writeByte(header);
+        out.write(payload);
+        out.flush();
     }
 
     private void receive() {
         Thread.ofVirtual().start(() -> {
             try {
-                String response;
-                while ((response = in.readLine()) != null) {
-                    System.out.println("Server: " + response);
+                while (in != null) {
+                    int length = in.readInt();
+                    byte header = in.readByte();
+                    byte[] data = in.readNBytes(length);
+
+                    String input = new String(data, StandardCharsets.UTF_8);
+                    System.out.println("Client received: header=" + (char) header + ", payload=" + input);
                 }
             } catch (IOException e) {
                 if ("Stream closed".equals(e.getMessage())) {
