@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,7 +19,7 @@ public class Server {
     public void start(int port) throws IOException {
         serverSocket = new ServerSocket(port);
 
-        Map<String, Map<String, PrintWriter>> groups = new ConcurrentHashMap<>();
+        Map<String, Map<String, DataOutputStream>> groups = new ConcurrentHashMap<>();
 
         try {
             while (!serverSocket.isClosed()) {
@@ -33,41 +35,56 @@ public class Server {
         serverSocket.close();
     }
 
-    private record ClientHandler(Socket clientSocket, Map<String, Map<String, PrintWriter>>  groups) implements Runnable {
+    private record ClientHandler(Socket clientSocket, Map<String, Map<String, DataOutputStream>> groups) implements Runnable {
 
         @Override
         public void run() {
-
-            try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+            try (DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+                 DataInputStream in = new DataInputStream(clientSocket.getInputStream())) {
 
                 String username = null;
-                String input;
-
                 Set<String> joinedGroup = ConcurrentHashMap.newKeySet();
 
-                while ((input = in.readLine()) != null) {
-                    if (input.startsWith("USERNAME ")) {
-                        username = input.substring(9);
-                        out.println("Logged in as: " + username);
-                    } else if (input.startsWith("JOIN ")) {
+                while (true) {
+                    int length;
+                    try {
+                        length = in.readInt();
+                    } catch (EOFException e) {
+                        System.out.println("Client disconnected.");
+                        break;
+                    }
+
+                    byte header = in.readByte();
+                    byte[] payload = in.readNBytes(length);
+
+                    String input = new String(payload, StandardCharsets.UTF_8);
+                    System.out.println("Server received: header=" + (char) header + ", payload=" + input);
+
+                    if (header == 'U') {
+                        username = input.substring(1);
+                        byte[] responsePayload = input.getBytes(StandardCharsets.UTF_8);
+                        out.writeInt(responsePayload.length);
+                        out.writeByte(header);
+                        out.write(responsePayload);
+                        out.flush();
+                    } else if (header == 'J') {
                         if (username == null) {
-                            out.println("You must sign username first");
+                            sendResponse(out, header, "You must sign username first");
                             continue;
                         }
 
-                        String groupName = input.substring(5);
+                        String groupName = input.substring(1);
 
                         groups.putIfAbsent(groupName, new ConcurrentHashMap<>());
                         groups.get(groupName).put(username, out);
 
                         joinedGroup.add(groupName);
-                        out.println("Joined group: " + groupName);
 
-                    } else if (input.startsWith("MESSAGE ") && !joinedGroup.isEmpty()) {
-                        String[] parts = input.substring(8).split(" ", 2);
+                        sendResponse(out, header, groupName);
+                    } else if (header == 'M' && !joinedGroup.isEmpty()) {
+                        String[] parts = input.substring(1).split(" ", 2);
                         if (parts.length < 2) {
-                            out.println("Invalid message format.");
+                            sendResponse(out, header, "Invalid message format.");
                             continue;
                         }
 
@@ -75,20 +92,20 @@ public class Server {
                         String message = parts[1];
 
                         if (!joinedGroup.contains(targetGroup)) {
-                            out.println("You are not part of group: " + targetGroup);
+                            sendResponse(out, header, "You are not part of group: " + targetGroup);
                             continue;
                         }
 
-                        Map<String, PrintWriter> groupMembers = groups.get(targetGroup);
+                        Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
                         if (groupMembers != null) {
                             for (var entry : groupMembers.entrySet()) {
                                 if (!entry.getKey().equals(username)) {
-                                    entry.getValue().println("[" + targetGroup + "] " + username + ": " + message);
+                                    sendResponse(entry.getValue(), header, ("[" + targetGroup + "] " + username + ": " + message));
                                 }
                             }
                         }
-                    } else if (input.equals("exit")){
-                        out.println("Good Bye");
+                    } else if (header == 'E') {
+                        sendResponse(out, header, "Good bye");
 
                         if (username != null) {
                             for (var group : joinedGroup) {
@@ -99,6 +116,7 @@ public class Server {
                                     if (writer != null) {
                                         writer.close();
                                     }
+
                                     if (groupMap.isEmpty()) {
                                         groups.remove(group);
                                     }
@@ -107,15 +125,28 @@ public class Server {
                         }
                         break;
                     } else {
-                        out.println("Unknown command or not in a group.");
+                        sendResponse(out, header, "Unknow command or not in group.");
                     }
                 }
+
             } catch (IOException e) {
                 System.err.println("Client connection error: " + e.getMessage());
             } finally {
                 try {
                     clientSocket.close();
                 } catch (IOException ignored) {}
+            }
+        }
+
+        private void sendResponse(DataOutputStream out, byte header, String response) {
+            try {
+                byte[] responsePayload = response.getBytes(StandardCharsets.UTF_8);
+                out.writeInt(responsePayload.length);
+                out.writeByte(header);
+                out.write(responsePayload);
+                out.flush();
+            } catch (IOException e) {
+                System.err.println("Error: " + e.getMessage());
             }
         }
     }
