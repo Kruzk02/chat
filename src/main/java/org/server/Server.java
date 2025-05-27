@@ -60,72 +60,71 @@ public class Server {
                     String input = new String(payload, StandardCharsets.UTF_8);
                     System.out.println("Server received: header=" + (char) header + ", payload=" + input);
 
-                    if (header == 'U') {
-                        username = input.substring(1);
-                        byte[] responsePayload = input.getBytes(StandardCharsets.UTF_8);
-                        out.writeInt(responsePayload.length);
-                        out.writeByte(header);
-                        out.write(responsePayload);
-                        out.flush();
-                    } else if (header == 'J') {
-                        if (username == null) {
-                            sendResponse(out, header, "You must sign username first");
-                            continue;
+                    switch (header) {
+                        case 'U' -> {
+                            username = input.substring(1);
+                            sendResponse(out, header, input);
                         }
-
-                        String groupName = input.substring(1);
-
-                        groups.putIfAbsent(groupName, new ConcurrentHashMap<>());
-                        groups.get(groupName).put(username, out);
-
-                        joinedGroup.add(groupName);
-
-                        sendResponse(out, header, groupName);
-                    } else if (header == 'M' && !joinedGroup.isEmpty()) {
-                        String[] parts = input.substring(1).split(" ", 2);
-                        if (parts.length < 2) {
-                            sendResponse(out, header, "Invalid message format.");
-                            continue;
-                        }
-
-                        String targetGroup = parts[0];
-                        String message = parts[1];
-
-                        if (!joinedGroup.contains(targetGroup)) {
-                            sendResponse(out, header, "You are not part of group: " + targetGroup);
-                            continue;
-                        }
-
-                        Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
-                        if (groupMembers != null) {
-                            for (var entry : groupMembers.entrySet()) {
-                                if (!entry.getKey().equals(username)) {
-                                    sendResponse(entry.getValue(), header, ("[" + targetGroup + "] " + username + ": " + message));
-                                }
+                        case 'J' -> {
+                            if (username == null) {
+                                sendResponse(out, header, "You must sign username first");
+                                continue;
                             }
+
+                            String groupName = input.substring(1);
+
+                            groups.putIfAbsent(groupName, new ConcurrentHashMap<>());
+                            groups.get(groupName).put(username, out);
+
+                            joinedGroup.add(groupName);
+
+                            sendResponse(out, header, groupName);
                         }
-                    } else if (header == 'E') {
-                        sendResponse(out, header, "Good bye");
+                        case 'M'-> {
+                            String[] parts = input.substring(1).split(" ", 2);
+                            if (parts.length < 2) {
+                                sendResponse(out, header, "Invalid message format.");
+                                continue;
+                            }
 
-                        if (username != null) {
-                            for (var group : joinedGroup) {
-                                var groupMap = groups.get(group);
+                            String targetGroup = parts[0];
+                            String message = parts[1];
 
-                                if (groupMap != null) {
-                                    var writer = groupMap.remove(username);
-                                    if (writer != null) {
-                                        writer.close();
-                                    }
+                            if (!joinedGroup.contains(targetGroup)) {
+                                sendResponse(out, header, "You are not part of group: " + targetGroup);
+                                continue;
+                            }
 
-                                    if (groupMap.isEmpty()) {
-                                        groups.remove(group);
+                            Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
+                            if (groupMembers != null) {
+                                for (var entry : groupMembers.entrySet()) {
+                                    if (!entry.getKey().equals(username)) {
+                                        sendResponse(entry.getValue(), header, ("[" + targetGroup + "] " + username + ": " + message));
                                     }
                                 }
                             }
                         }
-                        break;
-                    } else {
-                        sendResponse(out, header, "Unknow command or not in group.");
+                        case 'E' -> {
+                            sendResponse(out, header, "Good bye");
+
+                            if (username != null) {
+                                for (var group : joinedGroup) {
+                                    var groupMap = groups.get(group);
+
+                                    if (groupMap != null) {
+                                        var writer = groupMap.remove(username);
+                                        if (writer != null) {
+                                            writer.close();
+                                        }
+
+                                        if (groupMap.isEmpty()) {
+                                            groups.remove(group);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        default -> sendResponse(out, header, "Unknow command or not in group.");
                     }
                 }
 
