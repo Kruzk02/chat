@@ -1,5 +1,7 @@
 package org.client.networking;
 
+import org.MessageParser;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -23,24 +25,15 @@ public class Client {
         }
 
         byte header = (byte) message.charAt(0);
-        byte[] payload = message.substring(1).getBytes(StandardCharsets.UTF_8);
-
-        out.writeInt(payload.length);
-        out.writeByte(header);
-        out.write(payload);
-        out.flush();
+        MessageParser.writeMessage(out, header, message.substring(1));
     }
 
     private void receive() {
         Thread.ofVirtual().start(() -> {
             try {
                 while (in != null) {
-                    int length = in.readInt();
-                    byte header = in.readByte();
-                    byte[] data = in.readNBytes(length);
-
-                    String input = new String(data, StandardCharsets.UTF_8);
-                    System.out.println("Client received: header=" + (char) header + ", payload=" + input);
+                    var data = MessageParser.readMessage(in);
+                    System.out.println("Client received: header=" + data.header()  + ", payload=" + data.payload());
                 }
             } catch (IOException e) {
                 if ("Stream closed".equals(e.getMessage())) {
