@@ -15,7 +15,7 @@ public class Main {
 
             client.send(str);
 
-            if (str.equals("exit")) {
+            if (str.equals("E")) {
                 client.stop();
                 break;
             }

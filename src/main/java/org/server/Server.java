@@ -1,5 +1,6 @@
 package org.server;
 
+import org.HeaderType;
 import org.MessageParser;
 
 import java.io.*;
@@ -9,6 +10,7 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -58,12 +60,13 @@ public class Server {
 
                     System.out.println("Server received: header=" + data.header() + ", payload=" + data.payload());
 
-                    switch (data.header()) {
-                        case 'U' -> {
+                    HeaderType headerType = HeaderType.matchFirstCharacter((char) data.header());
+                    switch (headerType) {
+                        case USERNAME -> {
                             username = data.payload().substring(1);
                             MessageParser.writeMessage(out,data.header(),data.payload());
                         }
-                        case 'J' -> {
+                        case JOIN -> {
                             if (username == null) {
                                 MessageParser.writeMessage(out, data.header(), "You must sign username first");
                                 continue;
@@ -78,7 +81,7 @@ public class Server {
 
                             MessageParser.writeMessage(out, data.header(), groupName);
                         }
-                        case 'M'-> {
+                        case MESSAGE -> {
                             String[] parts = data.payload().substring(1).split(" ", 2);
                             if (parts.length < 2) {
                                 MessageParser.writeMessage(out, data.header(), "Invalid message format.");
@@ -102,7 +105,7 @@ public class Server {
                                 }
                             }
                         }
-                        case 'E' -> {
+                        case EXIT -> {
                             MessageParser.writeMessage(out, data.header(), "Good bye");
 
                             if (username != null) {
