@@ -58,41 +58,44 @@ public class Server {
                         break;
                     }
 
-                    System.out.println("Server received: header=" + data.header() + ", payload=" + data.payload());
+                    byte header = data.header();
+                    String payload = data.payload();
+                    System.out.println("Server received: header=" + header + ", payload=" + payload);
 
-                    HeaderType headerType = HeaderType.matchFirstCharacter((char) data.header());
+                    HeaderType headerType = HeaderType.matchFirstCharacter((char) header);
                     switch (headerType) {
                         case USERNAME -> {
-                            username = data.payload().substring(1);
-                            MessageParser.writeMessage(out,data.header(),data.payload());
+                            username = payload.substring(1);
+                            MessageParser.writeMessage(out, header, username);
                         }
                         case JOIN -> {
                             if (username == null) {
-                                MessageParser.writeMessage(out, data.header(), "You must sign username first");
+                                MessageParser.writeMessage(out, header, "You must sign username first");
                                 continue;
                             }
 
-                            String groupName = data.payload().substring(1);
+                            String groupName = payload.substring(1);
+                            boolean isJoined = joinedGroup.add(groupName);
+                            if (!isJoined) {
+                                MessageParser.writeMessage(out, header, "You already in group");
+                                continue;
+                            }
 
-                            groups.putIfAbsent(groupName, new ConcurrentHashMap<>());
-                            groups.get(groupName).put(username, out);
+                            groups.computeIfAbsent(groupName, k -> new ConcurrentHashMap<>()).putIfAbsent(username, out);
 
-                            joinedGroup.add(groupName);
-
-                            MessageParser.writeMessage(out, data.header(), groupName);
+                            MessageParser.writeMessage(out, header, groupName);
                         }
                         case MESSAGE -> {
-                            String[] parts = data.payload().substring(1).split(" ", 2);
+                            String[] parts = payload.substring(1).split(" ", 2);
                             if (parts.length < 2) {
-                                MessageParser.writeMessage(out, data.header(), "Invalid message format.");
+                                MessageParser.writeMessage(out, header, "Invalid message format.");
                                 continue;
                             }
 
                             String targetGroup = parts[0];
                             String message = parts[1];
-
                             if (!joinedGroup.contains(targetGroup)) {
-                                MessageParser.writeMessage(out, data.header(), "You are not part of group: " + targetGroup);
+                                MessageParser.writeMessage(out, header, "You are not part of group: " + targetGroup);
                                 continue;
                             }
 
@@ -100,14 +103,13 @@ public class Server {
                             if (groupMembers != null) {
                                 for (var entry : groupMembers.entrySet()) {
                                     if (!entry.getKey().equals(username)) {
-                                        MessageParser.writeMessage(entry.getValue(), data.header(), ("[" + targetGroup + "] " + username + ": " + message));
+                                        MessageParser.writeMessage(entry.getValue(), header, ("[" + targetGroup + "] " + username + ": " + message));
                                     }
                                 }
                             }
                         }
                         case EXIT -> {
-                            MessageParser.writeMessage(out, data.header(), "Good bye");
-
+                            MessageParser.writeMessage(out, header, "Good bye");
                             if (username != null) {
                                 for (var group : joinedGroup) {
                                     var groupMap = groups.get(group);
@@ -125,7 +127,7 @@ public class Server {
                                 }
                             }
                         }
-                        default -> MessageParser.writeMessage(out, data.header(), "Unknow command or not in group.");
+                        default -> MessageParser.writeMessage(out, header, "Unknown command or not in group.");
                     }
                 }
 
