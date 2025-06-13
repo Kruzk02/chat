@@ -2,12 +2,14 @@ package org.server;
 
 import org.HeaderType;
 import org.MessageParser;
+import org.server.config.DatabaseConfig;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -21,6 +23,8 @@ public class Server {
     private final ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4);
 
     public void start(int port) throws IOException {
+        createTable();
+
         serverSocket = new ServerSocket(port);
 
         Map<String, Map<String, DataOutputStream>> groups = new ConcurrentHashMap<>();
@@ -37,6 +41,24 @@ public class Server {
 
     public void stop() throws IOException {
         serverSocket.close();
+    }
+
+    private void createTable() {
+        var db = DatabaseConfig.getInstance();
+        var sql = "CREATE TABLE IF NOT EXISTS users (" +
+                "id INTEGER PRIMARY KEY, " +
+                "username VARCHAR(120) NOT NULL UNIQUE, " +
+                "password VARCHAR(120) NOT NULL" +
+                ");";
+
+        try (var conn = db.getConnection()) {
+            var stmt = conn.createStatement();
+
+            stmt.execute(sql);
+            System.out.println("Table created or already exists.");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private record ClientHandler(Socket clientSocket, Map<String, Map<String, DataOutputStream>> groups) implements Runnable {
