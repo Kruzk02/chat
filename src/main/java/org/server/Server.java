@@ -2,16 +2,13 @@ package org.server;
 
 import org.HeaderType;
 import org.MessageParser;
+import org.server.handler.*;
 
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,8 +43,17 @@ public class Server {
             try (DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
                  DataInputStream in = new DataInputStream(clientSocket.getInputStream())) {
 
-                String username = null;
-                Set<String> joinedGroup = ConcurrentHashMap.newKeySet();
+                List<CommandHandler> handlers = List.of(
+                        new UsernameCommandHandler(),
+                        new JoinCommandHandler(),
+                        new MessageCommandHandler(),
+                        new ExitCommandHandler()
+                );
+
+                Context context = new Context();
+                context.setOut(out);
+                context.setJoinedGroup(ConcurrentHashMap.newKeySet());
+                context.setGroups(groups);
 
                 while (true) {
                     MessageParser.Message data;
@@ -63,71 +69,18 @@ public class Server {
                     System.out.println("Server received: header=" + header + ", payload=" + payload);
 
                     HeaderType headerType = HeaderType.matchFirstCharacter((char) header);
-                    switch (headerType) {
-                        case USERNAME -> {
-                            username = payload.substring(1);
-                            MessageParser.writeMessage(out, header, username);
+
+                    boolean handled = false;
+                    for (var handler : handlers) {
+                        if (handler.canHandle(headerType)) {
+                            handler.handle(header, payload, context);
+                            handled = true;
+                            break;
                         }
-                        case JOIN -> {
-                            if (username == null) {
-                                MessageParser.writeMessage(out, header, "You must sign username first");
-                                continue;
-                            }
+                    }
 
-                            String groupName = payload.substring(1);
-                            boolean isJoined = joinedGroup.add(groupName);
-                            if (!isJoined) {
-                                MessageParser.writeMessage(out, header, "You already in group");
-                                continue;
-                            }
-
-                            groups.computeIfAbsent(groupName, k -> new ConcurrentHashMap<>()).putIfAbsent(username, out);
-
-                            MessageParser.writeMessage(out, header, groupName);
-                        }
-                        case MESSAGE -> {
-                            String[] parts = payload.substring(1).split(" ", 2);
-                            if (parts.length < 2) {
-                                MessageParser.writeMessage(out, header, "Invalid message format.");
-                                continue;
-                            }
-
-                            String targetGroup = parts[0];
-                            String message = parts[1];
-                            if (!joinedGroup.contains(targetGroup)) {
-                                MessageParser.writeMessage(out, header, "You are not part of group: " + targetGroup);
-                                continue;
-                            }
-
-                            Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
-                            if (groupMembers != null) {
-                                for (var entry : groupMembers.entrySet()) {
-                                    if (!entry.getKey().equals(username)) {
-                                        MessageParser.writeMessage(entry.getValue(), header, ("[" + targetGroup + "] " + username + ": " + message));
-                                    }
-                                }
-                            }
-                        }
-                        case EXIT -> {
-                            MessageParser.writeMessage(out, header, "Good bye");
-                            if (username != null) {
-                                for (var group : joinedGroup) {
-                                    var groupMap = groups.get(group);
-
-                                    if (groupMap != null) {
-                                        var writer = groupMap.remove(username);
-                                        if (writer != null) {
-                                            writer.close();
-                                        }
-
-                                        if (groupMap.isEmpty()) {
-                                            groups.remove(group);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        default -> MessageParser.writeMessage(out, header, "Unknown command or not in group.");
+                    if (!handled) {
+                        MessageParser.writeMessage(out, header, "Unknown command.");
                     }
                 }
 
