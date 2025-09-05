@@ -4,20 +4,14 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Optional;
 
-public class ChatDaoImpl implements ChatDao {
-
-  private final Connection connection;
-
-  public ChatDaoImpl(Connection connection) {
-    this.connection = connection;
-  }
+public record ChatDaoImpl(Connection connection) implements ChatDao {
 
   @Override
   public Optional<String> getMessage(String groupName) {
     String sql = "SELECT message FROM chat WHERE group_name = ? ORDER BY created_at DESC";
-    try (var statement = connection.prepareStatement(sql)){
+    try (var statement = connection.prepareStatement(sql)) {
       statement.setString(1, groupName);
-      try (var resultSet = statement.getResultSet()) {
+      try (var resultSet = statement.executeQuery()) {
         if (resultSet.next()) {
           return Optional.of(resultSet.getString("message"));
         }
