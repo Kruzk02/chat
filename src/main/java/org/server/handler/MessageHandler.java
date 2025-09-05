@@ -7,19 +7,23 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.HeaderType;
 import org.MessageParser;
+import org.server.dao.ChatDao;
 
 public class MessageHandler extends AbstractHeaderHandler {
   private final AtomicReference<String> usernameRef;
   private final Set<String> joinedGroups;
   private final Map<String, Map<String, DataOutputStream>> groups;
+  private final ChatDao chatDao;
 
   public MessageHandler(
       AtomicReference<String> usernameRef,
       Set<String> joinedGroups,
-      Map<String, Map<String, DataOutputStream>> groups) {
+      Map<String, Map<String, DataOutputStream>> groups,
+      ChatDao chatDao) {
     this.usernameRef = usernameRef;
     this.joinedGroups = joinedGroups;
     this.groups = groups;
+    this.chatDao = chatDao;
   }
 
   @Override
@@ -39,6 +43,8 @@ public class MessageHandler extends AbstractHeaderHandler {
         MessageParser.writeMessage(out, header, "You are not part of group: " + targetGroup);
         return;
       }
+
+      chatDao.save(targetGroup, message, username);
 
       Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
       if (groupMembers != null) {

@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -11,6 +12,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import org.HeaderType;
 import org.MessageParser;
+import org.server.dao.ChatDao;
+import org.server.dao.ChatDaoImpl;
 import org.server.handler.*;
 
 public class Server {
@@ -60,7 +63,7 @@ public class Server {
           usernameHandler.handle(headerType, header, payload, out);
         }
 
-      } catch (IOException e) {
+      } catch (IOException | SQLException e) {
         System.err.println("Client connection error: " + e.getMessage());
       } finally {
         try {
@@ -70,13 +73,15 @@ public class Server {
       }
     }
 
-    private HeaderHandler getHeaderHandler() {
+    private HeaderHandler getHeaderHandler() throws SQLException {
       AtomicReference<String> usernameRef = new AtomicReference<>();
       Set<String> joinedGroup = ConcurrentHashMap.newKeySet();
 
+      ChatDao chatDao = new ChatDaoImpl(DatabaseConnection.getInstance().getConnection());
+
       HeaderHandler usernameHandler = new UsernameHandler(usernameRef);
       HeaderHandler joinHandler = new JoinHandler(usernameRef, joinedGroup, groups);
-      HeaderHandler messageHandler = new MessageHandler(usernameRef, joinedGroup, groups);
+      HeaderHandler messageHandler = new MessageHandler(usernameRef, joinedGroup, groups, chatDao);
       HeaderHandler exitHandler = new ExitHandler(usernameRef, joinedGroup, groups);
 
       usernameHandler.setNext(joinHandler);
