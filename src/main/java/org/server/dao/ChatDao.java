@@ -1,8 +1,8 @@
 package org.server.dao;
 
-import java.util.Optional;
+import java.util.List;
 
 public interface ChatDao {
-  Optional<String> getMessage(String groupName);
+  List<String> getMessages(String groupName);
   void save(String groupName, String message, String username);
 }
