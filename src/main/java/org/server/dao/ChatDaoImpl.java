@@ -4,20 +4,20 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 public record ChatDaoImpl(Connection connection) implements ChatDao {
 
   @Override
   public List<String> getMessages(String groupName) {
-    String sql = "SELECT message FROM chat WHERE group_name = ? ORDER BY created_at DESC";
+    String sql = "SELECT username, message FROM chat WHERE group_name = ? ORDER BY created_at DESC";
     List<String> messages = new ArrayList<>();
     try (var statement = connection.prepareStatement(sql)) {
       statement.setString(1, groupName);
       try (var resultSet = statement.executeQuery()) {
         while (resultSet.next()) {
+          String username = resultSet.getString("username");
           String message = resultSet.getString("message");
-          messages.add(message);
+          messages.add("[" + groupName + "] " + username + ": " + message);
         }
       }
       return messages;
