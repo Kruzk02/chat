@@ -79,14 +79,16 @@ public class Server {
 
       ChatDao chatDao = new ChatDaoImpl(DatabaseConnection.getInstance().getConnection());
 
-      HeaderHandler usernameHandler = new UsernameHandler(usernameRef);
-      HeaderHandler joinHandler = new JoinHandler(usernameRef, joinedGroup, groups);
-      HeaderHandler messageHandler = new MessageHandler(usernameRef, joinedGroup, groups, chatDao);
-      HeaderHandler exitHandler = new ExitHandler(usernameRef, joinedGroup, groups);
+      var usernameHandler = new UsernameHandler(usernameRef);
+      var joinHandler = new JoinHandler(usernameRef, joinedGroup, groups);
+      var messageHandler = new MessageHandler(usernameRef, joinedGroup, groups, chatDao);
+      var getHandler = new GetHandler(chatDao, joinedGroup);
+      var exitHandler = new ExitHandler(usernameRef, joinedGroup, groups);
 
       usernameHandler.setNext(joinHandler);
       joinHandler.setNext(messageHandler);
-      messageHandler.setNext(exitHandler);
+      messageHandler.setNext(getHandler);
+      getHandler.setNext(exitHandler);
 
       return usernameHandler;
     }

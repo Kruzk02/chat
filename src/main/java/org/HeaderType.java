@@ -7,6 +7,7 @@ public enum HeaderType {
   USERNAME('U'),
   JOIN('J'),
   MESSAGE('M'),
+  GET('G'),
   EXIT('E');
 
   private final char firstChar;
