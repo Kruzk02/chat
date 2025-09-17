@@ -1,5 +1,6 @@
 package org.server;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -24,7 +25,7 @@ public class ExpiringCache<K, V> {
   }
 
   public void add(K key, V value, long ttlMillis) {
-    long expirationTime = System.currentTimeMillis() - ttlMillis;
+    long expirationTime = System.currentTimeMillis() + ttlMillis;
     caches.put(key, new Cache<V>(value, expirationTime));
   }
 

@@ -77,12 +77,13 @@ public class Server {
       AtomicReference<String> usernameRef = new AtomicReference<>();
       Set<String> joinedGroup = ConcurrentHashMap.newKeySet();
 
+      var expiringCache = new ExpiringCache<String, List<String>>(60000);
       ChatDao chatDao = new ChatDaoImpl(DatabaseConnection.getInstance().getConnection());
 
       var usernameHandler = new UsernameHandler(usernameRef);
       var joinHandler = new JoinHandler(usernameRef, joinedGroup, groups);
       var messageHandler = new MessageHandler(usernameRef, joinedGroup, groups, chatDao);
-      var getHandler = new GetHandler(chatDao, joinedGroup);
+      var getHandler = new GetHandler(chatDao, joinedGroup, expiringCache);
       var exitHandler = new ExitHandler(usernameRef, joinedGroup, groups);
 
       usernameHandler.setNext(joinHandler);
