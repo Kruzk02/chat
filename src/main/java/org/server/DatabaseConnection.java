@@ -11,16 +11,25 @@ public class DatabaseConnection {
   private DatabaseConnection() throws SQLException {
     this.connection = DriverManager.getConnection("jdbc:sqlite:db/chat.db");
 
-    var table = "CREATE TABLE IF NOT EXISTS chat ("
+    var chatTable = "CREATE TABLE IF NOT EXISTS chat ("
         + "id INTEGER PRIMARY KEY, "
-        + "username varchar(128) NOT NULL,"
+        + "user_id NOT NULL,"
         + "group_name varchar(255) NOT NULL,"
         + "message TEXT NOT NULL,"
-        + "created_at TIMESTAMP default CURRENT_TIMESTAMP"
+        + "created_at TIMESTAMP default CURRENT_TIMESTAMP,"
+        + "FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"
+        + ");";
+
+    var userTable = "CREATE TABLE IF NOT EXISTS users("
+        + "id INTEGER PRIMARY KEY, "
+        + "username varchar(128) NOT NULL UNIQUE,"
+        + "password varchar(255) NOT NULL,"
+        + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
         + ");";
 
     var stmt = this.connection.createStatement();
-    stmt.execute(table);
+    stmt.execute(userTable);
+    stmt.execute(chatTable);
   }
 
   public Connection getConnection() {
