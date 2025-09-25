@@ -4,17 +4,20 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 import org.HeaderType;
 import org.MessageParser;
 import org.server.dao.ChatDao;
 import org.server.dao.ChatDaoImpl;
+import org.server.dao.UserDao;
+import org.server.dao.UserDaoImpl;
 import org.server.handler.HandlerFactory;
 import org.server.handler.HeaderHandler;
 
-public record ClientHandler(
-    Socket clientSocket, Map<String, Map<String, DataOutputStream>> groups) implements Runnable {
+public record ClientHandler(Socket clientSocket, Map<String, Map<String, DataOutputStream>> groups)
+    implements Runnable {
 
   @Override
   public void run() {
@@ -22,8 +25,13 @@ public record ClientHandler(
         DataInputStream in = new DataInputStream(clientSocket.getInputStream())) {
 
       ClientContext context = new ClientContext(out);
-      ChatDao chatDao = new ChatDaoImpl(DatabaseConnection.getInstance().getConnection());
-      HeaderHandler handler = new HandlerFactory(groups, chatDao).create(context);
+
+      Connection connection = DatabaseConnection.getInstance().getConnection();
+
+      ChatDao chatDao = new ChatDaoImpl(connection);
+      UserDao userDao = new UserDaoImpl(connection);
+
+      HeaderHandler handler = new HandlerFactory(groups, chatDao, userDao).create(context);
 
       while (true) {
         MessageParser.Message data;

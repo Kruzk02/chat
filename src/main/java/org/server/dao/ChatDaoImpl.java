@@ -27,15 +27,15 @@ public record ChatDaoImpl(Connection connection) implements ChatDao {
   }
 
   @Override
-  public void save(String groupName, String message, String username) {
-    String sql = "INSERT INTO chat(group_name, message, username) VALUES(?, ?, ?)";
+  public void save(String groupName, String message, Long userId) {
+    String sql = "INSERT INTO chat(group_name, message, user_id) VALUES(?, ?, ?)";
     try {
       connection.setAutoCommit(false);
 
       try (var statement = connection.prepareStatement(sql)) {
         statement.setString(1, groupName);
         statement.setString(2, message);
-        statement.setString(3, username);
+        statement.setLong(3, userId);
         statement.executeUpdate();
       }
 

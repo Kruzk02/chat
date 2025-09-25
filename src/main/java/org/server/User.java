@@ -8,8 +8,7 @@ public class User {
   private String password;
   private Timestamp createdAt;
 
-  public User() {
-  }
+  public User() {}
 
   public long getId() {
     return id;

@@ -16,7 +16,9 @@ public class GetHandler extends AbstractHeaderHandler {
   private final Set<String> joinedGroups;
   private final ExpiringCache<String, List<String>> expiringCache;
 
-  public GetHandler(ChatDao chatDao, Set<String> joinedGroups,
+  public GetHandler(
+      ChatDao chatDao,
+      Set<String> joinedGroups,
       ExpiringCache<String, List<String>> expiringCache) {
     this.chatDao = chatDao;
     this.joinedGroups = joinedGroups;
@@ -50,11 +52,11 @@ public class GetHandler extends AbstractHeaderHandler {
         System.out.println("Cache hit");
       }
 
-      for (int i = messages.size() - 1; i >= 0;i--) {
+      for (int i = messages.size() - 1; i >= 0; i--) {
         MessageParser.writeMessage(out, header, messages.get(i));
       }
     } else {
-      super.handle(type,header,payload,out);
+      super.handle(type, header, payload, out);
     }
   }
 }

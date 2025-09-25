@@ -3,27 +3,33 @@ package org.server.handler;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import org.HeaderType;
 import org.MessageParser;
+import org.server.User;
 import org.server.dao.ChatDao;
+import org.server.dao.UserDao;
 
 public class MessageHandler extends AbstractHeaderHandler {
   private final AtomicReference<String> usernameRef;
   private final Set<String> joinedGroups;
   private final Map<String, Map<String, DataOutputStream>> groups;
   private final ChatDao chatDao;
+  private final UserDao userDao;
 
   public MessageHandler(
       AtomicReference<String> usernameRef,
       Set<String> joinedGroups,
       Map<String, Map<String, DataOutputStream>> groups,
-      ChatDao chatDao) {
+      ChatDao chatDao,
+      UserDao userDao) {
     this.usernameRef = usernameRef;
     this.joinedGroups = joinedGroups;
     this.groups = groups;
     this.chatDao = chatDao;
+    this.userDao = userDao;
   }
 
   @Override
@@ -44,7 +50,8 @@ public class MessageHandler extends AbstractHeaderHandler {
         return;
       }
 
-      chatDao.save(targetGroup, message, username);
+      Optional<User> user = userDao.findByUsername(username);
+      user.ifPresent(value -> chatDao.save(targetGroup, message, value.getId()));
 
       Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
       if (groupMembers != null) {

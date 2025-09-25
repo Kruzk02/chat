@@ -5,5 +5,5 @@ import java.util.List;
 public interface ChatDao {
   List<String> getMessages(String groupName);
 
-  void save(String groupName, String message, String username);
+  void save(String groupName, String message, Long userId);
 }
