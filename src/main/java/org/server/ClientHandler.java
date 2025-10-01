@@ -13,8 +13,8 @@ import org.server.dao.ChatDaoImpl;
 import org.server.handler.HandlerFactory;
 import org.server.handler.HeaderHandler;
 
-public record ClientHandler(
-    Socket clientSocket, Map<String, Map<String, DataOutputStream>> groups) implements Runnable {
+public record ClientHandler(Socket clientSocket, Map<String, Map<String, DataOutputStream>> groups)
+    implements Runnable {
 
   @Override
   public void run() {

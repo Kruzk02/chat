@@ -1,6 +1,5 @@
 package org.server;
 
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,11 +43,12 @@ public class ExpiringCache<K, V> {
   }
 
   private void cleanupExpiredData() {
-    caches.forEach((k, v) -> {
-      if (v.isExpired()) {
-        caches.remove(k);
-      }
-    });
+    caches.forEach(
+        (k, v) -> {
+          if (v.isExpired()) {
+            caches.remove(k);
+          }
+        });
   }
 
   private record Cache<V>(V value, long expirationTime) {

@@ -11,13 +11,14 @@ public class DatabaseConnection {
   private DatabaseConnection() throws SQLException {
     this.connection = DriverManager.getConnection("jdbc:sqlite:db/chat.db");
 
-    var table = "CREATE TABLE IF NOT EXISTS chat ("
-        + "id INTEGER PRIMARY KEY, "
-        + "username varchar(128) NOT NULL,"
-        + "group_name varchar(255) NOT NULL,"
-        + "message TEXT NOT NULL,"
-        + "created_at TIMESTAMP default CURRENT_TIMESTAMP"
-        + ");";
+    var table =
+        "CREATE TABLE IF NOT EXISTS chat ("
+            + "id INTEGER PRIMARY KEY, "
+            + "username varchar(128) NOT NULL,"
+            + "group_name varchar(255) NOT NULL,"
+            + "message TEXT NOT NULL,"
+            + "created_at TIMESTAMP default CURRENT_TIMESTAMP"
+            + ");";
 
     var stmt = this.connection.createStatement();
     stmt.execute(table);
