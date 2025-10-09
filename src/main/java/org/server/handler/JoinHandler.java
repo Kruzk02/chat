@@ -26,22 +26,25 @@ public class JoinHandler extends AbstractHeaderHandler {
   @Override
   public void handle(HeaderType type, byte header, String payload, DataOutputStream out)
       throws IOException {
-    if (type == HeaderType.JOIN) {
-      var username = usernameRef.get();
-      if (username == null) {
-        MessageParser.writeMessage(out, header, "You must sign username first");
-      }
-
-      var groupName = payload.substring(1);
-      var isJoined = joinedGroups.add(groupName);
-      if (!isJoined) {
-        MessageParser.writeMessage(out, header, "You already in group");
-      }
-
-      groups.computeIfAbsent(groupName, k -> new ConcurrentHashMap<>()).putIfAbsent(username, out);
-      MessageParser.writeMessage(out, header, groupName);
-    } else {
+    if (type != HeaderType.JOIN) {
       super.handle(type, header, payload, out);
+      return;
     }
+
+    var username = usernameRef.get();
+    if (username == null) {
+      MessageParser.writeMessage(out, header, "You must sign username first");
+      return;
+    }
+
+    var groupName = payload.substring(1);
+    var isJoined = joinedGroups.add(groupName);
+    if (!isJoined) {
+      MessageParser.writeMessage(out, header, "You already in group");
+      return;
+    }
+
+    groups.computeIfAbsent(groupName, k -> new ConcurrentHashMap<>()).putIfAbsent(username, out);
+    MessageParser.writeMessage(out, header, groupName);
   }
 }

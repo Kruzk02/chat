@@ -26,26 +26,26 @@ public class ExitHandler extends AbstractHeaderHandler {
   public void handle(HeaderType type, byte header, String payload, DataOutputStream out)
       throws IOException {
     if (type == HeaderType.EXIT) {
-      var username = usernameRef.get();
-      MessageParser.writeMessage(out, header, "Good bye");
-      if (username != null) {
-        for (var group : joinedGroups) {
-          var groupMap = groups.get(group);
+      super.handle(type, header, payload, out);
+      return;
+    }
+    var username = usernameRef.get();
+    MessageParser.writeMessage(out, header, "Good bye");
+    if (username != null) {
+      for (var group : joinedGroups) {
+        var groupMap = groups.get(group);
 
-          if (groupMap != null) {
-            var writer = groupMap.remove(username);
-            if (writer != null) {
-              writer.close();
-            }
+        if (groupMap != null) {
+          var writer = groupMap.remove(username);
+          if (writer != null) {
+            writer.close();
+          }
 
-            if (groupMap.isEmpty()) {
-              groups.remove(group);
-            }
+          if (groupMap.isEmpty()) {
+            groups.remove(group);
           }
         }
       }
-    } else {
-      super.handle(type, header, payload, out);
     }
   }
 }

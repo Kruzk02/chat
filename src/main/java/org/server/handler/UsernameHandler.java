@@ -17,12 +17,13 @@ public class UsernameHandler extends AbstractHeaderHandler {
   @Override
   public void handle(HeaderType type, byte header, String payload, DataOutputStream out)
       throws IOException {
-    if (type == HeaderType.USERNAME) {
-      var username = payload.substring(1);
-      usernameRef.set(username);
-      MessageParser.writeMessage(out, header, username);
-    } else {
+    if (type != HeaderType.USERNAME) {
       super.handle(type, header, payload, out);
+      return;
     }
+
+    var username = payload.substring(1);
+    usernameRef.set(username);
+    MessageParser.writeMessage(out, header, username);
   }
 }

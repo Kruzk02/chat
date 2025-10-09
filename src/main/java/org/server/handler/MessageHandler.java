@@ -29,34 +29,35 @@ public class MessageHandler extends AbstractHeaderHandler {
   @Override
   public void handle(HeaderType type, byte header, String payload, DataOutputStream out)
       throws IOException {
-    if (type == HeaderType.MESSAGE) {
-      var parts = payload.substring(1).split(" ", 2);
-      if (parts.length < 2) {
-        MessageParser.writeMessage(out, header, "Invalid message format.");
-        return;
-      }
+    if (type != HeaderType.MESSAGE) {
+      super.handle(type, header, payload, out);
+      return;
+    }
 
-      var targetGroup = parts[0];
-      var message = parts[1];
-      var username = usernameRef.get();
-      if (!joinedGroups.contains(targetGroup)) {
-        MessageParser.writeMessage(out, header, "You are not part of group: " + targetGroup);
-        return;
-      }
+    var parts = payload.substring(1).split(" ", 2);
+    if (parts.length < 2) {
+      MessageParser.writeMessage(out, header, "Invalid message format.");
+      return;
+    }
 
-      chatDao.save(targetGroup, message, username);
+    var targetGroup = parts[0];
+    var message = parts[1];
+    var username = usernameRef.get();
+    if (!joinedGroups.contains(targetGroup)) {
+      MessageParser.writeMessage(out, header, "You are not part of group: " + targetGroup);
+      return;
+    }
 
-      Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
-      if (groupMembers != null) {
-        for (var entry : groupMembers.entrySet()) {
-          if (!entry.getKey().equals(username)) {
-            MessageParser.writeMessage(
-                entry.getValue(), header, ("[" + targetGroup + "] " + username + ": " + message));
-          }
+    chatDao.save(targetGroup, message, username);
+
+    Map<String, DataOutputStream> groupMembers = groups.get(targetGroup);
+    if (groupMembers != null) {
+      for (var entry : groupMembers.entrySet()) {
+        if (!entry.getKey().equals(username)) {
+          MessageParser.writeMessage(
+              entry.getValue(), header, ("[" + targetGroup + "] " + username + ": " + message));
         }
       }
-    } else {
-      super.handle(type, header, payload, out);
     }
   }
 }
